@@ -1,6 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 const app = express();
+const jwt = require('jsonwebtoken');
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 const port = process.env.PORT || 5000;
 require("dotenv").config();
@@ -10,15 +11,34 @@ app.use(express.json());
 
 
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASSWORD}@cluster0.zpaqsgt.mongodb.net/?retryWrites=true&w=majority`;
-console.log(uri);
 const client = new MongoClient(uri, { useNewUrlParser: true, useUnifiedTopology: true, serverApi: ServerApiVersion.v1 });
 
-async function run(){
+function JWTverification(req, res, next) {
+const authHeader = req.headers.authorization;
+if(!authHeader){
+    res.status(401).send({message: 'unauthrized access'})
+}
+const token = authHeader.split(' ')[1];
+jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, function(err, decoded){
+    if(err){
+        res.status(401).send({message: 'unauthrized access'})
+    }
+    req.decoded = decoded;
+    next();
+})
+}
 
+async function run(){
     try{
         const servicesCollection = client.db('PiJournal').collection('services');
         const reviewCollection = client.db('PiJournal').collection('reviews')
 
+        app.post('/jwt', (req, res)=>{
+            const user = req.body;
+            console.log(user);
+            const token = jwt.sign(user, process.env.ACCESS_TOKEN_SECRET, {expiresIn: '1h'})
+            res.send({token})
+        })
         app.get('/services', async(req, res)=>{
             const query = {};
             const cursor = servicesCollection.find(query);
@@ -45,8 +65,12 @@ async function run(){
             res.send(reviews);
         })
 
-        app.get('/myReviews', async(req, res) => {
+        app.get('/myReviews',JWTverification, async(req, res) => {
+            const decoded = req.decoded;
             const email = req.query.email;
+            if (decoded.email !== email) {
+               return res.status(403).send({message: 'unauthorized access'})
+            }
             const query = {email: email}
             const cursor = reviewCollection.find(query).sort({time: -1});
             const reviews = await cursor.toArray();
