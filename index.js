@@ -68,7 +68,7 @@ async function run(){
         app.get('/myReviews',JWTverification, async(req, res) => {
             const decoded = req.decoded;
             const email = req.query.email;
-            if (decoded.email !== email) {
+            if (decoded?.email !== email) {
                return res.status(403).send({message: 'unauthorized access'})
             }
             const query = {email: email}
@@ -88,7 +88,6 @@ async function run(){
             const id = req.params.id;
             const query = {_id: ObjectId(id)};
             const updatedmessage = req.body.updatedReview;
-            console.log(updatedmessage);
             const updatedReview = {
                 $set: {
                     review: updatedmessage
@@ -100,7 +99,6 @@ async function run(){
 
         app.delete('/myReviews/:id', async(req, res) => {
             const id = req.params.id;
-            console.log(id);
             const query = {_id: ObjectId(id)};
             const result =await reviewCollection.deleteOne(query);
             res.send(result);
@@ -108,7 +106,6 @@ async function run(){
 
         app.post('/reviews', async(req, res)=>{
             const review = req.body;
-            console.log(review);
             const result = await reviewCollection.insertOne(review);
             res.send(result);
         })
